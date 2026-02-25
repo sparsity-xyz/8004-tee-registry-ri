@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+/// @notice Verifier interface — each TEE platform implements this.
+/// Must revert on invalid attestation; returns the two fields the registry stores.
+interface IVerifier {
+    function verify(bytes calldata attestation) external returns (bytes32 codeMeasurement, address teeWallet);
+}
+
+/// @notice Supported TEE platforms.
+enum TEEType {
+    TDX,
+    NITRO
+}
+
+/// @notice A registered TEE identity.
+struct TEEEntry {
+    address owner;
+    TEEType teeType;
+    bytes32 codeMeasurement;
+    address teeWallet;
+    uint64 attestedAt;
+    bool active;
+}
+
+/// @title TEERegistry — EIP-8004 Reference Implementation
+/// @notice On-chain registry of TEE identities verified via platform-specific attestation.
+contract TEERegistry is Ownable {
+    // ── State ───────────────────────────────────────────────────────────
+    // IDs start at 1 so that 0 serves as "not found" sentinel in reverse lookups.
+    uint256 public nextId = 1;
+    mapping(uint256 => TEEEntry) public entries;
+    mapping(address => uint256) public walletToId;
+    mapping(bytes32 => uint256) public measurementToId;
+    mapping(TEEType => IVerifier) public verifiers;
+
+    // ── Events ──────────────────────────────────────────────────────────
+    event Registered(uint256 indexed id, TEEType teeType, bytes32 codeMeasurement, address teeWallet);
+    event Revoked(uint256 indexed id, string reason);
+    event VerifierSet(TEEType teeType, address verifier);
+
+    // ── Errors ──────────────────────────────────────────────────────────
+    error VerifierNotConfigured(TEEType teeType);
+    error WalletAlreadyRegistered(address wallet);
+    error MeasurementAlreadyRegistered(bytes32 measurement);
+    error NotEntryOwnerOrAdmin(uint256 id);
+    error EntryNotActive(uint256 id);
+
+    constructor() Ownable(msg.sender) {}
+
+    // ── Admin ───────────────────────────────────────────────────────────
+    function setVerifier(TEEType teeType, address verifier) external onlyOwner {
+        verifiers[teeType] = IVerifier(verifier);
+        emit VerifierSet(teeType, verifier);
+    }
+
+    // ── Registration ────────────────────────────────────────────────────
+    function register(TEEType teeType, bytes calldata attestation) external returns (uint256 id) {
+        IVerifier v = verifiers[teeType];
+        if (address(v) == address(0)) revert VerifierNotConfigured(teeType);
+
+        (bytes32 codeMeasurement, address teeWallet) = v.verify(attestation);
+
+        if (walletToId[teeWallet] != 0) revert WalletAlreadyRegistered(teeWallet);
+        if (measurementToId[codeMeasurement] != 0) revert MeasurementAlreadyRegistered(codeMeasurement);
+
+        id = nextId++;
+        entries[id] = TEEEntry({
+            owner: msg.sender,
+            teeType: teeType,
+            codeMeasurement: codeMeasurement,
+            teeWallet: teeWallet,
+            attestedAt: uint64(block.timestamp),
+            active: true
+        });
+        walletToId[teeWallet] = id;
+        measurementToId[codeMeasurement] = id;
+
+        emit Registered(id, teeType, codeMeasurement, teeWallet);
+    }
+
+    // ── Revocation ──────────────────────────────────────────────────────
+    function revoke(uint256 id, string calldata reason) external {
+        TEEEntry storage entry = entries[id];
+        if (!entry.active) revert EntryNotActive(id);
+        if (msg.sender != entry.owner && msg.sender != owner()) revert NotEntryOwnerOrAdmin(id);
+
+        entry.active = false;
+        emit Revoked(id, reason);
+    }
+
+    // ── Views ───────────────────────────────────────────────────────────
+    function getEntry(uint256 id) external view returns (TEEEntry memory) {
+        return entries[id];
+    }
+
+    function isActive(uint256 id) external view returns (bool) {
+        return entries[id].active;
+    }
+
+    function getByWallet(address wallet) external view returns (uint256 id, TEEEntry memory entry) {
+        id = walletToId[wallet];
+        entry = entries[id];
+    }
+
+    function getByMeasurement(bytes32 measurement) external view returns (uint256 id, TEEEntry memory entry) {
+        id = measurementToId[measurement];
+        entry = entries[id];
+    }
+}
