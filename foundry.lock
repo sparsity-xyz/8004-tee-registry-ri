@@ -1,4 +1,7 @@
 {
+  "lib/automata-dcap-v3-attestation": {
+    "rev": "aa43dcc15ce6dc27003870faaa015ff1a7b28379"
+  },
   "lib/forge-std": {
     "tag": {
       "name": "v1.15.0",

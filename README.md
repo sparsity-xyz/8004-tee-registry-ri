@@ -1,6 +1,6 @@
 # EIP-8004 TEE Registry — Reference Implementation
 
-Minimal on-chain registry for TEE attestation verification. Three contracts, ~260 lines of Solidity.
+Minimal on-chain registry for TEE attestation verification. Three contracts, real on-chain verification for both Intel TDX and AWS Nitro.
 
 ## Architecture
 
@@ -11,46 +11,45 @@ Minimal on-chain registry for TEE attestation verification. Three contracts, ~26
                     │  register()      │
                     │  revoke()        │
                     │  getEntry()      │
-                    │  getByWallet()   │
                     │  getByMeasure()  │
                     └──────┬───────────┘
                            │
               ┌────────────┼────────────┐
               │                         │
      ┌────────▼─────────┐    ┌─────────▼──────────┐
-     │  DCAPVerifier     │    │  MockNitroVerifier  │
-     │  (Intel TDX/SGX)  │    │  (AWS Nitro stub)   │
-     └────────┬──────────┘    └────────────────────┘
-              │
-     ┌────────▼──────────┐
-     │  Automata DCAP    │
-     │  (on-chain)       │
-     └───────────────────┘
+     │  DCAPVerifier     │    │  NitroVerifier      │
+     │  (Intel TDX/SGX)  │    │  (AWS Nitro)        │
+     └────────┬──────────┘    └────────┬────────────┘
+              │                        │
+     ┌────────▼──────────┐    ┌────────▼────────────┐
+     │  Automata DCAP    │    │  NitroValidator      │
+     │  (on-chain)       │    │  + CertManager       │
+     └───────────────────┘    └─────────────────────┘
 ```
 
 **TEERegistry** stores TEE identities and delegates attestation verification to platform-specific verifiers via the `IVerifier` interface.
 
 **DCAPVerifier** wraps [Automata's on-chain DCAP verifier](https://github.com/automata-network/automata-dcap-v3-attestation) for Intel TDX/SGX attestation. Gas cost: ~4-5M per verification.
 
-**MockNitroVerifier** is a stub for AWS Nitro Enclaves. Real on-chain Nitro verification exists but costs ~63M gas (exceeds block limits). Swap in a real verifier when gas-feasible.
+**NitroVerifier** wraps [base/nitro-validator](https://github.com/base/nitro-validator) for AWS Nitro Enclaves. Full on-chain COSE_Sign1 parsing, X.509 cert chain validation, and ECDSA-384 signature verification. Gas cost: ~63M per verification (fits within Base L2 block gas limit of 150M).
 
 ## Build & Test
 
 ```bash
-# Install dependencies (if not already)
+# Install dependencies
 forge install
 
 # Build
 forge build
 
-# Test
+# Test (uses real Nitro attestation data)
 forge test -vvv
 ```
 
 ## Deploy
 
 ```bash
-# Set the Automata DCAP verifier address (deploy a mock for testnets)
+# Set the Automata DCAP verifier address
 export AUTOMATA_ATTESTATION=0x...
 
 forge script script/Deploy.s.sol --rpc-url <RPC_URL> --broadcast
@@ -59,9 +58,9 @@ forge script script/Deploy.s.sol --rpc-url <RPC_URL> --broadcast
 ## E2E Demo Walkthrough
 
 1. **Deploy** the registry + verifiers (via `Deploy.s.sol`)
-2. **Register a TDX enclave**: call `registry.register(TEEType.TDX, rawDCAPQuote)` — the DCAP verifier parses the quote, extracts `mrEnclave`/`mrSigner`/`teeWallet`, and stores the entry
-3. **Register a Nitro enclave**: call `registry.register(TEEType.NITRO, abi.encode(measurement, wallet))`
-4. **Look up by wallet**: `registry.getByWallet(teeWallet)` returns the full entry
+2. **Register a TDX enclave**: call `registry.register(TEEType.TDX, rawDCAPQuote)` — the DCAP verifier parses the quote, extracts `mrEnclave`/`mrSigner`, and stores keccak256(mrEnclave || mrSigner) as the code measurement
+3. **Register a Nitro enclave**: call `registry.register(TEEType.NITRO, rawCOSE_Sign1)` — the Nitro verifier validates the full attestation, extracts PCR0/1/2, and stores keccak256(pcr0 || pcr1 || pcr2)
+4. **Look up by measurement**: `registry.getByMeasurement(codeMeasurement)` returns the full entry
 5. **Revoke**: owner or admin calls `registry.revoke(id, "reason")`
 
 ## IVerifier Interface
@@ -70,7 +69,7 @@ forge script script/Deploy.s.sol --rpc-url <RPC_URL> --broadcast
 interface IVerifier {
     function verify(bytes calldata attestation)
         external
-        returns (bytes32 codeMeasurement, address teeWallet);
+        returns (bytes32 codeMeasurement);
 }
 ```
 
