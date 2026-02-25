@@ -4,9 +4,11 @@ pragma solidity ^0.8.24;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @notice Verifier interface — each TEE platform implements this.
-/// Must revert on invalid attestation; returns the code measurement the registry stores.
+/// Must revert on invalid attestation; returns the code measurement, public key, and user data.
 interface IVerifier {
-    function verify(bytes calldata attestation) external returns (bytes32 codeMeasurement);
+    function verify(bytes calldata attestation)
+        external
+        returns (bytes32 codeMeasurement, bytes memory pubKey, bytes memory userData);
 }
 
 /// @notice Supported TEE platforms.
@@ -20,6 +22,8 @@ struct TEEEntry {
     address owner;
     TEEType teeType;
     bytes32 codeMeasurement;
+    bytes pubKey;
+    bytes userData;
     uint64 attestedAt;
     bool active;
 }
@@ -35,7 +39,7 @@ contract TEERegistry is Ownable {
     mapping(TEEType => IVerifier) public verifiers;
 
     // ── Events ──────────────────────────────────────────────────────────
-    event Registered(uint256 indexed id, TEEType teeType, bytes32 codeMeasurement);
+    event Registered(uint256 indexed id, TEEType teeType, bytes32 codeMeasurement, bytes pubKey, bytes userData);
     event Revoked(uint256 indexed id, string reason);
     event VerifierSet(TEEType teeType, address verifier);
 
@@ -58,7 +62,7 @@ contract TEERegistry is Ownable {
         IVerifier v = verifiers[teeType];
         if (address(v) == address(0)) revert VerifierNotConfigured(teeType);
 
-        bytes32 codeMeasurement = v.verify(attestation);
+        (bytes32 codeMeasurement, bytes memory pubKey, bytes memory userData) = v.verify(attestation);
 
         if (measurementToId[codeMeasurement] != 0) revert MeasurementAlreadyRegistered(codeMeasurement);
 
@@ -67,12 +71,14 @@ contract TEERegistry is Ownable {
             owner: msg.sender,
             teeType: teeType,
             codeMeasurement: codeMeasurement,
+            pubKey: pubKey,
+            userData: userData,
             attestedAt: uint64(block.timestamp),
             active: true
         });
         measurementToId[codeMeasurement] = id;
 
-        emit Registered(id, teeType, codeMeasurement);
+        emit Registered(id, teeType, codeMeasurement, pubKey, userData);
     }
 
     // ── Revocation ──────────────────────────────────────────────────────

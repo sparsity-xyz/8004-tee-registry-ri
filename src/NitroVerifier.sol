@@ -24,7 +24,11 @@ contract NitroVerifier is IVerifier {
         validator = _validator;
     }
 
-    function verify(bytes calldata attestation) external override returns (bytes32 codeMeasurement) {
+    function verify(bytes calldata attestation)
+        external
+        override
+        returns (bytes32 codeMeasurement, bytes memory pubKey, bytes memory userData)
+    {
         (bytes memory attestationTbs, bytes memory signature) = validator.decodeAttestationTbs(attestation);
         NitroValidator.Ptrs memory ptrs = validator.validateAttestation(attestationTbs, signature);
 
@@ -33,5 +37,8 @@ contract NitroVerifier is IVerifier {
         bytes memory pcr2 = attestationTbs.slice(ptrs.pcrs[2]);
 
         codeMeasurement = keccak256(abi.encodePacked(pcr0, pcr1, pcr2));
+
+        pubKey = ptrs.publicKey.isNull() ? bytes("") : attestationTbs.slice(ptrs.publicKey);
+        userData = ptrs.userData.isNull() ? bytes("") : attestationTbs.slice(ptrs.userData);
     }
 }

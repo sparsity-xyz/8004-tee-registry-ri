@@ -16,13 +16,17 @@ import {IAttestation} from "@automata-network/dcap-attestation/interfaces/IAttes
 contract TestAutomataOutput is IAttestation {
     bytes public outputToReturn;
 
-    function buildOutput(uint8 tcbStatus, bytes32 mrEnclave, bytes32 mrSigner) external {
+    function buildOutput(uint8 tcbStatus, bytes32 mrEnclave, bytes32 mrSigner, bytes memory reportData) external {
         // 1 + 32 + 32 + 64 = 129 bytes
         bytes memory out = new bytes(129);
         out[0] = bytes1(tcbStatus);
         assembly {
             mstore(add(add(out, 32), 1), mrEnclave)
             mstore(add(add(out, 32), 33), mrSigner)
+        }
+        // Copy reportData into bytes 65–128 (up to 64 bytes)
+        for (uint256 i = 0; i < reportData.length && i < 64; i++) {
+            out[65 + i] = reportData[i];
         }
         outputToReturn = out;
     }
@@ -80,12 +84,14 @@ contract TEERegistryTest is Test {
 
     // ── Helpers ─────────────────────────────────────────────────────────
 
+    bytes constant DEFAULT_REPORT_DATA = hex"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+
     function _setupDCAPOutput(bytes32 mrEnclave, bytes32 mrSigner) internal {
-        testAutomata.buildOutput(0, mrEnclave, mrSigner);
+        testAutomata.buildOutput(0, mrEnclave, mrSigner, DEFAULT_REPORT_DATA);
     }
 
-    /// @dev Compute expected Nitro measurement by running the validator directly.
-    function _expectedNitroMeasurement() internal returns (bytes32) {
+    /// @dev Compute expected Nitro values by running the validator directly.
+    function _expectedNitroValues() internal returns (bytes32 measurement, bytes memory pubKey, bytes memory userData) {
         (bytes memory attestationTbs, bytes memory signature) = validator.decodeAttestationTbs(NITRO_ATTESTATION);
         NitroValidator.Ptrs memory ptrs = validator.validateAttestation(attestationTbs, signature);
 
@@ -93,7 +99,9 @@ contract TEERegistryTest is Test {
         bytes memory pcr1 = attestationTbs.slice(ptrs.pcrs[1]);
         bytes memory pcr2 = attestationTbs.slice(ptrs.pcrs[2]);
 
-        return keccak256(abi.encodePacked(pcr0, pcr1, pcr2));
+        measurement = keccak256(abi.encodePacked(pcr0, pcr1, pcr2));
+        pubKey = ptrs.publicKey.isNull() ? bytes("") : attestationTbs.slice(ptrs.publicKey);
+        userData = ptrs.userData.isNull() ? bytes("") : attestationTbs.slice(ptrs.userData);
     }
 
     // ── Registration: TDX ───────────────────────────────────────────────
@@ -111,6 +119,8 @@ contract TEERegistryTest is Test {
         assertTrue(entry.teeType == TEEType.TDX);
         bytes32 expectedMeasurement = keccak256(abi.encodePacked(MR_ENCLAVE, MR_SIGNER));
         assertEq(entry.codeMeasurement, expectedMeasurement);
+        assertEq(entry.pubKey, bytes(""), "DCAP pubKey should be empty");
+        assertEq(entry.userData, DEFAULT_REPORT_DATA, "DCAP userData should be reportData");
         assertTrue(entry.active);
         assertEq(entry.attestedAt, block.timestamp);
     }
@@ -118,7 +128,8 @@ contract TEERegistryTest is Test {
     // ── Registration: Nitro ─────────────────────────────────────────────
 
     function test_RegisterNitro() public {
-        bytes32 expectedMeasurement = _expectedNitroMeasurement();
+        (bytes32 expectedMeasurement, bytes memory expectedPubKey, bytes memory expectedUserData) =
+            _expectedNitroValues();
 
         vm.prank(user1);
         uint256 id = registry.register(TEEType.NITRO, NITRO_ATTESTATION);
@@ -129,6 +140,8 @@ contract TEERegistryTest is Test {
         assertEq(entry.owner, user1);
         assertTrue(entry.teeType == TEEType.NITRO);
         assertEq(entry.codeMeasurement, expectedMeasurement);
+        assertEq(entry.pubKey, expectedPubKey, "Nitro pubKey mismatch");
+        assertEq(entry.userData, expectedUserData, "Nitro userData mismatch");
         assertTrue(entry.active);
     }
 

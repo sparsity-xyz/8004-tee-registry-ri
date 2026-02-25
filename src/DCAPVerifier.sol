@@ -20,7 +20,11 @@ contract DCAPVerifier is IVerifier {
         automata = IAttestation(_automata);
     }
 
-    function verify(bytes calldata attestation) external override returns (bytes32 codeMeasurement) {
+    function verify(bytes calldata attestation)
+        external
+        override
+        returns (bytes32 codeMeasurement, bytes memory pubKey, bytes memory userData)
+    {
         bytes memory output = automata.verifyAndAttestOnChain(attestation);
 
         bytes32 mrEnclave;
@@ -31,5 +35,18 @@ contract DCAPVerifier is IVerifier {
         }
 
         codeMeasurement = keccak256(abi.encodePacked(mrEnclave, mrSigner));
+
+        // reportData occupies bytes 65–128 (64 bytes) of the Automata output
+        userData = new bytes(64);
+        assembly {
+            // output + 32 (length prefix) + 65 (offset) = output + 97
+            let src := add(output, 97)
+            let dst := add(userData, 32)
+            mstore(dst, mload(src))
+            mstore(add(dst, 32), mload(add(src, 32)))
+        }
+
+        // DCAP does not expose a separate public key
+        pubKey = "";
     }
 }
