@@ -34,15 +34,28 @@ forge script script/Deploy.s.sol --rpc-url <RPC> --broadcast  # Deploy
 
 ## Gas
 - DCAP verification: ~4-5M gas
-- Nitro verification: ~63M gas with no prior verified certs — break this up by calling `CertManager.verifyCACert` for each cert in the cabundle in separate transactions first
+- Nitro verification (cold, no cached certs): ~56M gas
+- Nitro verification (warm, certs pre-verified): ~18M gas
 
-## L2 Deployment Compatibility (Nitro @ ~63M gas)
-- **Base**: block 375M, per-tx 25M — exceeds per-tx limit, must split cert verification across transactions
-- **Arbitrum One**: block 32M, per-tx effectively same — exceeds limit, same splitting strategy needed
-- **OP Mainnet**: block 30M — exceeds limit, same splitting strategy needed
-- **zkSync Era**: per-tx 80M — fits, Nitro verification can run in a single transaction
-- **Scroll**: block 10M — far too low, even split transactions may be tight for individual cert verification
-- **Linea**: block 61M — barely under, may work but leaves no headroom (planned increase to 200M in 2026)
+### Nitro Cert-Splitting Strategy
+The ~56M cold cost comes from verifying 4 CA certs + 1 client cert via ECDSA-384. Each costs ~9.5M gas individually. Pre-verify certs in separate transactions by calling `CertManager.verifyCACert` for each cert in the cabundle, then the final `validateAttestation` call uses cached certs and fits under 25M.
+
+```
+CA cert 0 (root):        ~9K gas     (cached at CertManager deploy)
+CA cert 1 (intermediate): ~9.5M gas  (ECDSA-384)
+CA cert 2 (regional):     ~9.8M gas  (ECDSA-384)
+CA cert 3 (zonal):        ~9.5M gas  (ECDSA-384)
+Client cert (leaf):       ~9.5M gas  (ECDSA-384)
+Final validateAttestation: ~18M gas  (warm — all certs cached)
+```
+
+## L2 Deployment Compatibility
+- **Base**: block 375M, per-tx 25M — split certs across transactions, each fits under 25M
+- **Arbitrum One**: block 32M, per-tx same — same splitting strategy
+- **OP Mainnet**: block 30M — same splitting strategy
+- **zkSync Era**: per-tx 80M — cold verification fits in a single transaction
+- **Scroll**: block 10M — individual cert verification (~9.5M) barely fits, no headroom
+- **Linea**: block 61M — cold verification fits, planned increase to 200M in 2026
 
 ## Solidity Version
 0.8.24, Cancun EVM, optimizer on (200 runs)
