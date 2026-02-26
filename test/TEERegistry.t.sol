@@ -318,8 +318,7 @@ contract TEERegistryTest is Test {
         registry.whitelistMeasurement(measurement, "https://example.com/app");
 
         assertEq(
-            keccak256(bytes(registry.whitelistedMeasurements(measurement))),
-            keccak256(bytes("https://example.com/app"))
+            keccak256(bytes(registry.whitelistedMeasurements(measurement))), keccak256(bytes("https://example.com/app"))
         );
     }
 
