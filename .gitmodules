@@ -9,4 +9,4 @@
 	url = https://github.com/automata-network/automata-dcap-v3-attestation
 [submodule "lib/nitro-validator"]
 	path = lib/nitro-validator
-	url = https://github.com/base/nitro-validator
+	url = https://github.com/U0001F3A2/nitro-validator
