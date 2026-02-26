@@ -2,25 +2,21 @@
   "network": "base_sepolia",
   "chainId": 84532,
   "contracts": {
-    "CertManager": "0x9A74b19265A761Bf82C76cE8EE590AE382A5f4Ac",
-    "NitroValidator": "0x1d35497807b6b0d83BB070C0778c0b002dc446b8",
-    "NitroVerifier": "0x5EE471F4307116c4ef9B048dAFB3C029991a2581",
-    "TEERegistry": "0x537b8FA029393C1243Fc406E6013dd3b2C0F5e6E"
+    "CertManager": "0xE5578D3c9006CC13A4D728017B9f0CC2C72027bD",
+    "NitroValidator": "0xa43F92EFC31A1be47D7B4D14d93e21c7BC2780AF",
+    "NitroVerifier": "0x3ba859a2592C585b010d9647c193F06755E8Cc18",
+    "TEERegistry": "0xf08d07b09C33535dcc4C3Bae04ccC5466e9297EE"
   },
   "verification": {
-    "CertManager": "https://sepolia.basescan.org/address/0x9a74b19265a761bf82c76ce8ee590ae382a5f4ac",
-    "NitroValidator": "https://sepolia.basescan.org/address/0x1d35497807b6b0d83bb070c0778c0b002dc446b8",
-    "NitroVerifier": "https://sepolia.basescan.org/address/0x5ee471f4307116c4ef9b048dafb3c029991a2581",
-    "TEERegistry": "https://sepolia.basescan.org/address/0x537b8fa029393c1243fc406e6013dd3b2c0f5e6e"
+    "CertManager": "https://sepolia.basescan.org/address/0xe5578d3c9006cc13a4d728017b9f0cc2c72027bd",
+    "NitroValidator": "https://sepolia.basescan.org/address/0xa43f92efc31a1be47d7b4d14d93e21c7bc2780af",
+    "NitroVerifier": "https://sepolia.basescan.org/address/0x3ba859a2592c585b010d9647c193f06755e8cc18",
+    "TEERegistry": "https://sepolia.basescan.org/address/0xf08d07b09c33535dcc4c3bae04ccc5466e9297ee"
   },
   "attestationEndpoint": "https://317.fxrmas.sparsity.cloud/.well-known/attestation",
   "registeredEntry": {
-    "id": 2,
+    "id": 1,
     "codeMeasurement": "0xe770a284d05888028565daccbfe93d59a5433a2bbb4b683aa8f6bf6c93100545",
-    "registerTx": "0x745f9c2e32dd77c575fc9136d6a6a13d047f0e209f1ce4d7b72b830a367f032a",
-    "revoked": {
-      "previousId": 1,
-      "revokeTx": "0x7b4dbf435d6d6ebdca6a9fa37237f5146d120c355ccdfd522bbaf96272ac792a"
-    }
+    "registerTx": "0x887adc15bda6b6fb8856d5f036a49690d6beb72871f52d171da9deb737c296fa"
   }
 }

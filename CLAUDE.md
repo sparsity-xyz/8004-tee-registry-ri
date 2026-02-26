@@ -75,16 +75,15 @@ Final validateAttestation:   ~18.6M gas  (warm — all certs cached)
 
 ## Base Sepolia Deployment
 ```
-CertManager:    0x9A74b19265A761Bf82C76cE8EE590AE382A5f4Ac
-NitroValidator: 0x1d35497807b6b0d83BB070C0778c0b002dc446b8
-NitroVerifier:  0x5EE471F4307116c4ef9b048dAFB3C029991a2581
-TEERegistry:    0x537b8FA029393C1243Fc406E6013dd3b2C0F5e6E
+CertManager:    0xE5578D3c9006CC13A4D728017B9f0CC2C72027bD
+NitroValidator: 0xa43F92EFC31A1be47D7B4D14d93e21c7BC2780AF
+NitroVerifier:  0x3ba859a2592C585b010d9647c193F06755E8Cc18
+TEERegistry:    0xf08d07b09C33535dcc4C3Bae04ccC5466e9297EE
 ```
 
 Attestation endpoint: `https://317.fxrmas.sparsity.cloud/.well-known/attestation`
 
-Registered entry ID 2, code measurement: `0xe770a284...93100545` ([tx](https://sepolia.basescan.org/tx/0x745f9c2e32dd77c575fc9136d6a6a13d047f0e209f1ce4d7b72b830a367f032a))
-Entry ID 1 revoked ([tx](https://sepolia.basescan.org/tx/0x7b4dbf435d6d6ebdca6a9fa37237f5146d120c355ccdfd522bbaf96272ac792a))
+Registered entry ID 1, code measurement: `0xe770a284...93100545` ([tx](https://sepolia.basescan.org/tx/0x887adc15bda6b6fb8856d5f036a49690d6beb72871f52d171da9deb737c296fa))
 
 ## L2 Deployment Compatibility
 - **Base**: block 375M, per-tx 25M — split certs across transactions, each fits under 25M
