@@ -92,6 +92,11 @@ contract TEERegistryTest is Test {
         testAutomata.buildOutput(0, mrEnclave, mrSigner, DEFAULT_REPORT_DATA);
     }
 
+    function _whitelistTDX() internal {
+        bytes32 measurement = keccak256(abi.encodePacked(MR_ENCLAVE, MR_SIGNER));
+        registry.whitelistMeasurement(measurement, "https://example.com/tdx");
+    }
+
     /// @dev Compute expected Nitro values by running the validator directly.
     function _expectedNitroValues() internal returns (bytes32 measurement, bytes memory pubKey, bytes memory userData) {
         (bytes memory attestationTbs, bytes memory signature) = validator.decodeAttestationTbs(NITRO_ATTESTATION);
@@ -110,6 +115,7 @@ contract TEERegistryTest is Test {
 
     function test_RegisterTDX() public {
         _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
 
         vm.prank(user1);
         uint256 id = registry.register(TEEType.TDX, hex"deadbeef");
@@ -132,6 +138,7 @@ contract TEERegistryTest is Test {
     function test_RegisterNitro() public {
         (bytes32 expectedMeasurement, bytes memory expectedPubKey, bytes memory expectedUserData) =
             _expectedNitroValues();
+        registry.whitelistMeasurement(expectedMeasurement, "https://example.com/nitro");
 
         vm.prank(user1);
         uint256 id = registry.register(TEEType.NITRO, NITRO_ATTESTATION);
@@ -151,20 +158,22 @@ contract TEERegistryTest is Test {
 
     function test_LookupByMeasurement() public {
         _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
 
         vm.prank(user1);
         uint256 expectedId = registry.register(TEEType.TDX, hex"deadbeef");
 
         bytes32 measurement = keccak256(abi.encodePacked(MR_ENCLAVE, MR_SIGNER));
-        (uint256 id, TEEEntry memory entry) = registry.getByMeasurement(measurement);
-        assertEq(id, expectedId);
-        assertEq(entry.codeMeasurement, measurement);
+        uint256[] memory ids = registry.getByMeasurement(measurement);
+        assertEq(ids.length, 1);
+        assertEq(ids[0], expectedId);
     }
 
     // ── Revocation ──────────────────────────────────────────────────────
 
     function test_RevokeBySelf() public {
         _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
 
         vm.prank(user1);
         uint256 id = registry.register(TEEType.TDX, hex"deadbeef");
@@ -177,6 +186,7 @@ contract TEERegistryTest is Test {
 
     function test_RevokeByAdmin() public {
         _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
 
         vm.prank(user1);
         uint256 id = registry.register(TEEType.TDX, hex"deadbeef");
@@ -188,16 +198,20 @@ contract TEERegistryTest is Test {
 
     // ── Error Paths ─────────────────────────────────────────────────────
 
-    function test_RevertDuplicateMeasurement() public {
+    function test_DuplicateMeasurementAllowed() public {
         _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
 
         vm.prank(user1);
-        registry.register(TEEType.TDX, hex"deadbeef");
+        uint256 id1 = registry.register(TEEType.TDX, hex"deadbeef");
 
         vm.prank(user2);
-        bytes32 measurement = keccak256(abi.encodePacked(MR_ENCLAVE, MR_SIGNER));
-        vm.expectRevert(abi.encodeWithSelector(TEERegistry.MeasurementAlreadyRegistered.selector, measurement));
-        registry.register(TEEType.TDX, hex"deadbeef");
+        uint256 id2 = registry.register(TEEType.TDX, hex"deadbeef");
+
+        assertEq(id1, 1);
+        assertEq(id2, 2);
+        assertTrue(registry.isActive(id1));
+        assertTrue(registry.isActive(id2));
     }
 
     function test_RevertUnconfiguredVerifier() public {
@@ -215,6 +229,7 @@ contract TEERegistryTest is Test {
 
     function test_RevertRevokeByStranger() public {
         _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
 
         vm.prank(user1);
         uint256 id = registry.register(TEEType.TDX, hex"deadbeef");
@@ -226,6 +241,7 @@ contract TEERegistryTest is Test {
 
     function test_RevertRevokeInactive() public {
         _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
 
         vm.prank(user1);
         uint256 id = registry.register(TEEType.TDX, hex"deadbeef");
@@ -273,8 +289,13 @@ contract TEERegistryTest is Test {
     // ── Multiple Registrations ──────────────────────────────────────────
 
     function test_MultipleRegistrations() public {
-        // Register TDX
+        // Whitelist both measurements
         _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
+        (bytes32 nitroMeasurement,,) = _expectedNitroValues();
+        registry.whitelistMeasurement(nitroMeasurement, "https://example.com/nitro");
+
+        // Register TDX
         vm.prank(user1);
         uint256 id1 = registry.register(TEEType.TDX, hex"deadbeef");
 
@@ -288,5 +309,60 @@ contract TEERegistryTest is Test {
 
         assertTrue(registry.isActive(id1));
         assertTrue(registry.isActive(id2));
+    }
+
+    // ── Whitelist ────────────────────────────────────────────────────────
+
+    function test_WhitelistMeasurement() public {
+        bytes32 measurement = keccak256("test-measurement");
+        registry.whitelistMeasurement(measurement, "https://example.com/app");
+
+        assertEq(
+            keccak256(bytes(registry.whitelistedMeasurements(measurement))),
+            keccak256(bytes("https://example.com/app"))
+        );
+    }
+
+    function test_RemoveWhitelistedMeasurement() public {
+        bytes32 measurement = keccak256("test-measurement");
+        registry.whitelistMeasurement(measurement, "https://example.com/app");
+        registry.removeWhitelistedMeasurement(measurement);
+
+        assertEq(bytes(registry.whitelistedMeasurements(measurement)).length, 0);
+    }
+
+    function test_RevertRegisterNonWhitelisted() public {
+        _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        // Do NOT whitelist
+
+        bytes32 measurement = keccak256(abi.encodePacked(MR_ENCLAVE, MR_SIGNER));
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(TEERegistry.MeasurementNotWhitelisted.selector, measurement));
+        registry.register(TEEType.TDX, hex"deadbeef");
+    }
+
+    function test_WhitelistOnlyOwner() public {
+        bytes32 measurement = keccak256("test-measurement");
+
+        vm.prank(user1);
+        vm.expectRevert();
+        registry.whitelistMeasurement(measurement, "https://example.com/app");
+    }
+
+    function test_DuplicateMeasurementReturnsMultipleIds() public {
+        _setupDCAPOutput(MR_ENCLAVE, MR_SIGNER);
+        _whitelistTDX();
+
+        vm.prank(user1);
+        uint256 id1 = registry.register(TEEType.TDX, hex"deadbeef");
+
+        vm.prank(user2);
+        uint256 id2 = registry.register(TEEType.TDX, hex"deadbeef");
+
+        bytes32 measurement = keccak256(abi.encodePacked(MR_ENCLAVE, MR_SIGNER));
+        uint256[] memory ids = registry.getByMeasurement(measurement);
+        assertEq(ids.length, 2);
+        assertEq(ids[0], id1);
+        assertEq(ids[1], id2);
     }
 }

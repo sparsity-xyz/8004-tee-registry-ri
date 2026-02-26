@@ -8,6 +8,9 @@
       "rev": "0844d7e1fc5e60d77b68e469bff60265f236c398"
     }
   },
+  "lib/nitro-validator": {
+    "rev": "0f006d2075637dd9640e530c4a7065f5c8bb2132"
+  },
   "lib/openzeppelin-contracts": {
     "tag": {
       "name": "v5.5.0",

@@ -1,0 +1,8 @@
+{
+  "pcr0": "aea6412ab33f0cad7082a88001eac9a10ee81c6c2ae56faf9037b9077142b451d064166a5facf977507376c79d846845",
+  "pcr1": "4b4d5b3661b3efc12920900c80e126e4ce783c522de6c02a2a5bf7af3a2b9327b86776f188e4be1c1c404a129dbda493",
+  "pcr2": "a1771fbadbdea8fbb44a18e366cc26c6c1cf8670758a7530a7cf108af34c5638fd63032d313d6a9a26878b9598ed9ad4",
+  "codeMeasurement": "0xe770a284d05888028565daccbfe93d59a5433a2bbb4b683aa8f6bf6c93100545",
+  "buildUrl": "https://github.com/sparsity-xyz/sparsity-nova-app-hub/actions/runs/22403381671",
+  "attestationEndpoint": "https://317.fxrmas.sparsity.cloud/.well-known/attestation"
+}

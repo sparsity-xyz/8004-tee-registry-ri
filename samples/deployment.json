@@ -1,0 +1,26 @@
+{
+  "network": "base_sepolia",
+  "chainId": 84532,
+  "contracts": {
+    "CertManager": "0x9A74b19265A761Bf82C76cE8EE590AE382A5f4Ac",
+    "NitroValidator": "0x1d35497807b6b0d83BB070C0778c0b002dc446b8",
+    "NitroVerifier": "0x5EE471F4307116c4ef9B048dAFB3C029991a2581",
+    "TEERegistry": "0x537b8FA029393C1243Fc406E6013dd3b2C0F5e6E"
+  },
+  "verification": {
+    "CertManager": "https://sepolia.basescan.org/address/0x9a74b19265a761bf82c76ce8ee590ae382a5f4ac",
+    "NitroValidator": "https://sepolia.basescan.org/address/0x1d35497807b6b0d83bb070c0778c0b002dc446b8",
+    "NitroVerifier": "https://sepolia.basescan.org/address/0x5ee471f4307116c4ef9b048dafb3c029991a2581",
+    "TEERegistry": "https://sepolia.basescan.org/address/0x537b8fa029393c1243fc406e6013dd3b2c0f5e6e"
+  },
+  "attestationEndpoint": "https://317.fxrmas.sparsity.cloud/.well-known/attestation",
+  "registeredEntry": {
+    "id": 2,
+    "codeMeasurement": "0xe770a284d05888028565daccbfe93d59a5433a2bbb4b683aa8f6bf6c93100545",
+    "registerTx": "0x745f9c2e32dd77c575fc9136d6a6a13d047f0e209f1ce4d7b72b830a367f032a",
+    "revoked": {
+      "previousId": 1,
+      "revokeTx": "0x7b4dbf435d6d6ebdca6a9fa37237f5146d120c355ccdfd522bbaf96272ac792a"
+    }
+  }
+}
